@@ -1,9 +1,9 @@
-
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2\imgproc\imgproc.hpp"
 #include <iostream>
 #include <random>
 
+#include "Segment.h"
 
 using namespace cv;
 using namespace std;
@@ -11,12 +11,32 @@ using namespace std;
 
 int main()
 {
-	int largest_area = 0;
-	int largest_contour_index = 0;
-	Rect bounding_rect;
+	Segment newCloth;
+	newCloth.sampleImage = imread("sample image.jpg", CV_LOAD_IMAGE_COLOR);
 
-	Mat src = imread("sample image.jpg", CV_LOAD_IMAGE_COLOR);
-	resize(src, src, Size(src.cols / 4, src.rows / 4));
+	newCloth.initialize();
+	Mat segmentedCloth = newCloth.findDominantObject(newCloth.sampleImage);
+    
+	imshow("shirt",segmentedCloth);
+	waitKey(0);
+	
+	
+	
+	//resize(mask,mask,morphShirt.size());
+	
+	//imshow("clustered image gray", mask);
+
+
+	//imwrite("mask.jpg",mask);
+	//imshow("clustered image gray", morphShirt);
+	//waitKey(0);
+	
+	//Mat hsvImage(src.rows, src.cols, CV_8UC1);
+	//cvtColor(src, hsvImage, CV_BGR2HSV); //Convert to gray
+										 //threshold(thr, thr, 25, 255, THRESH_BINARY);
+
+
+	/*
 	Mat hsvImage(src.rows, src.cols, CV_8UC1);
 	
 	
@@ -43,31 +63,29 @@ int main()
 		}
 	}
 
-	imshow("H", V);
+	imshow("H", V); 
 
-	blur(V,V,Size(3,3),Point(-1,-1), BORDER_DEFAULT);
+	(V,V,Size(3,3),Point(-1,-1), BORDER_DEFAULT);
+	blur(S, S, Size(3, 3), Point(-1, -1), BORDER_DEFAULT);
+	blur(shiftedH, shiftedH, Size(3, 3), Point(-1, -1), BORDER_DEFAULT);
 
-	Mat cannyH,cannyC,cannyV;
-	Canny(V, cannyH, 150, 100);
-	//Canny(V, cannyH, 200, 150);
-	//Canny(V, cannyH, 200, 150);
+	Mat cannyH,cannyS,cannyV;
+	Canny(shiftedH, cannyH, 100, 50);
+	Canny(S, cannyS, 200, 150);
+	Canny(V, cannyV, 200, 150);
 
-	/*/
-	std::vector<std::vector<cv::Point> > contoursH;
-	std::vector<cv::Vec4i> hierarchyH;
-	cv::findContours(cannyH, contoursH, hierarchyH, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE);
 
-	// draw the contours to a copy of the input image:
-	cv::Mat outputH = src.clone();
-	for (int i = 0; i< contoursH.size(); i++)
-	{
-		cv::drawContours(outputH, contoursH, i, cv::Scalar(0, 0, 255), 2, 8, hierarchyH, 0);
-	}
+	namedWindow("H edge", CV_WINDOW_AUTOSIZE);
+	imshow("H edge", cannyH);
+	
+	("S edge", CV_WINDOW_AUTOSIZE);
+	imshow("S edge", cannyS);
+	
+	("V edge", CV_WINDOW_AUTOSIZE);
+	imshow("V edge", cannyV);
+	
+	waitKey(0);
 	*/
 
 
-	namedWindow("edges", CV_WINDOW_AUTOSIZE);
-	imshow("edges", cannyH);
-	waitKey(0);
-	
 }
