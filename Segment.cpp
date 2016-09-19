@@ -10,23 +10,44 @@ void Segment::initialize()
 {
 	
 	//sampleImage = imread("sample image.jpg", CV_LOAD_IMAGE_COLOR);
-	resize(sampleImage, sampleImage, Size(sampleImage.cols / 4, sampleImage.rows / 4));
-
+	//resize(sampleImage, sampleImage, Size(sampleImage.cols / 4, sampleImage.rows / 4));
+	resize(sampleImage, sampleImage, Size(FRAME_HEIGHT,FRAME_WIDTH));
 	
 
 	blur(sampleImage, src, Size(7, 7));
-	imshow("blurred", src);
+	//imshow("blurred", src);
 
 
 }
 
+Mat Segment::histEqualization(Mat image)
+{
+	vector<Mat> channels;
+	Mat imgHistEqualized;
+
+	cvtColor(image, imgHistEqualized, CV_BGR2YCrCb); //change the color image from BGR to YCrCb format
+
+	split(imgHistEqualized, channels); //split the image into channels
+
+	equalizeHist(channels[0], channels[0]); //equalize histogram on the 1st channel (Y)
+
+	merge(channels, imgHistEqualized); //merge 3 channels including the modified 1st channel into one image
+
+	cvtColor(imgHistEqualized, imgHistEqualized, CV_YCrCb2BGR);
+	
+	return imgHistEqualized;
+}
+
 Mat Segment::colorCluster(Mat img, int clusterCount)
 {
+	
 	Mat labels;
 	int attempts = 5;
 	Mat centers;
-    Mat new_image(img.size(), img.type());//output
+	//Mat img = histEqualization(image);
+	Mat new_image(img.size(), img.type());//output
     Mat new_centers(centers.size(), centers.type());
+	
 	Mat samples(img.rows * img.cols, 3, CV_32F);
 	
 	for (int y = 0; y < img.rows; y++)
@@ -39,11 +60,6 @@ Mat Segment::colorCluster(Mat img, int clusterCount)
 	cout << centers << endl;
 	//cout << labels << endl;
 
-
-
-
-
-
 	for (int y = 0; y < img.rows; y++)
 		for (int x = 0; x < img.cols; x++)
 		{
@@ -54,11 +70,13 @@ Mat Segment::colorCluster(Mat img, int clusterCount)
 		}
 
 	imshow("clustered image", new_image);
-	waitKey(0);
+	//waitKey(0);
 	return new_image;
 
 
 }
+
+
 
 Mat Segment::findDominantColorMask(Mat image)
 {
@@ -75,37 +93,38 @@ Mat Segment::findDominantColorMask(Mat image)
 
 	calcHist(&morphShirt, 1, 0, Mat(), hist, 1, &histSize, &histRange, true, false);
 
-	//cout << hist << endl;
-
 	
-	//int minLoc;
-
-	//minMaxLoc(hist, NULL, maxVal, NULL,NULL);
-	//minMaxLoc(hist, NULL, &maxVal, NULL, NULL);
 	locateLocalMaxima1D(hist, maxLoc, maxVal);
 	
-	//minMaxLoc(hist, NULL, NULL, NULL, &maxLoc);
+	
 	cout << "max value is: "<<maxVal<<" located at"<< maxLoc << endl;
 	
-	//int loc = maxLoc;
-
 	threshold(morphShirt, morphShirt, maxLoc - 1, 255, THRESH_TOZERO);
 	threshold(morphShirt, morphShirt, maxLoc + 1, 255, THRESH_TOZERO_INV);
 	
-	imshow("mask old", morphShirt);
+	//imshow("mask old", morphShirt);
 
 	threshold(morphShirt, morphShirt, maxLoc - 1, 1, THRESH_BINARY);
-	//divide(morphShirt,maxLoc,morphShirt,-1);
-
+	
 	Mat mask;
 	morphShirt.convertTo(mask, CV_8UC1);
-
+	
 	
 
 	Mat maskLabels, labels8U, tempLabels;
-	int numberOfLabels = connectedComponents(mask, maskLabels, 8, CV_16U) - 1;
-	dilate(mask, mask, getStructuringElement(MORPH_ELLIPSE, Size(3, 3), Point(-1, -1)));
+	
+	dilate(mask, mask, getStructuringElement(MORPH_ELLIPSE, Size(5, 5), Point(-1, -1)));
+	erode(mask, mask, getStructuringElement(MORPH_ELLIPSE, Size(3, 3), Point(-1, -1)));
+	
+	
+	//testing
+	Mat temp;
+	multiply(mask, 255, temp);
+	//imshow("old mask", temp);
+	//end of test
 
+	//connected components of the mask
+	int numberOfLabels = connectedComponents(mask, maskLabels, 8, CV_16U) - 1;
 	maskLabels.convertTo(labels8U, CV_8U);
 
 	Scalar area, largestArea = 0;
@@ -130,13 +149,39 @@ Mat Segment::findDominantColorMask(Mat image)
 	threshold(labels8U, tempLabels, (double)largestAreaComponent, 255, THRESH_TOZERO_INV);
 
 	threshold(tempLabels, labels8U, (double)largestAreaComponent - 0.5, 1, THRESH_BINARY);
-
-
+	
 	labels8U.convertTo(mask, CV_8UC1);
+	dilate(mask, mask, getStructuringElement(MORPH_ELLIPSE, Size(5, 5), Point(-1, -1)));
+	// end of connected components algorithm
 
+	//fill gaps
+	Mat tempMask;
 
-	imshow("mask", mask);
-	waitKey(0);
+	mask.copyTo(tempMask);
+
+	
+	copyMakeBorder(tempMask,tempMask,1,1,1,1,BORDER_CONSTANT,0);
+	imwrite("tempMask.jpg",tempMask);
+	//imshow("temp mask", tempBound);
+	//waitKey(0);
+	int i = floodFill(tempMask, Point(0, 0), Scalar(1), 0, Scalar(0), Scalar(0), 4);
+	multiply(tempMask, 255, tempMask);
+	bitwise_not(tempMask, tempMask);
+	
+	Rect myRoi(1,1,mask.cols,mask.rows);
+	Mat newTempMask = tempMask(myRoi);
+	divide(newTempMask, 255, newTempMask);
+	
+	imwrite("tempMask.jpg", tempMask);
+
+	add(newTempMask,mask,mask);
+
+	//end of fill gaps
+	//imshow("temp mask", tempMask);
+
+	//imshow("mask", mask);
+	//waitKey(0);
+	imwrite("mask.jpg", mask);
 	return mask;
 }
 
@@ -159,11 +204,14 @@ Mat Segment::findDominantObject(Mat image)
 	Mat shirtOnly;
 	merge(channels, shirtOnly);
 
-	imshow("extracted shirt", shirtOnly);
-	waitKey(0);
+	//imshow("extracted shirt", shirtOnly);
+	//waitKey(0);
 
+	
 	return shirtOnly;
 }
+
+
 
 void Segment::locateLocalMaxima1D(Mat dataArray, int & maxLoc, double & maxVal)
 {
