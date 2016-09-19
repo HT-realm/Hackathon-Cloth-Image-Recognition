@@ -7,3 +7,4 @@ Data fed into the database that pulls out the matching shirts and stores from th
 
 Written using OpenCV with help of the Kmeans clusters algorithm. 
 
+Presentation on Youtube could be found at "https://www.youtube.com/watch?v=zlk-j0k5Zfg&feature=youtu.be"
